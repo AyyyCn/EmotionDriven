@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EmotionDriven · Analytics</title>
+<link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+<header><div class="header-inner"><div class="brand"><span class="brand-mark" aria-hidden="true">∿</span> EmotionDriven</div>
+<nav aria-label="Workspace"><button id="reference-tab">Reference data</button><button id="sessions-tab">Playtest sessions</button></nav></div></header>
+<main>
+<div class="heading"><div><h1 id="title"></h1><p id="description"></p></div>
+<label class="button primary" for="files">Import session logs<input id="files" type="file" multiple accept=".jsonl,application/x-ndjson"></label></div>
+<p id="notice" role="status" hidden></p>
+<section id="empty" class="panel" hidden><h2>No playtest sessions yet</h2><p>Record a session in Unity’s Session Manager, then open its JSONL file here. Imported recordings stay in this browser tab.</p></section>
+<div id="analysis">
+<div class="filters"><label id="session-field" hidden>Recording <select id="session"></select></label><label><span id="filter-label">Category</span> <select id="filter"></select></label><label id="source-field" hidden>Input source <select id="source"></select></label><label class="search">Search <input id="query" type="search" placeholder="Image name or ID"></label></div>
+<p id="metadata" hidden></p>
+<section id="metrics" aria-label="Summary metrics"></section>
+<div class="panels"><section class="panel chart-panel"><h2 id="chart-title"></h2><p id="chart-caption"></p>
+<div class="plot"><canvas id="plot" aria-describedby="chart-caption" role="img"></canvas><output id="tip" hidden></output></div>
+<div id="legend" class="legend"></div></section>
+<section class="panel"><h2 id="breakdown-title"></h2><p id="breakdown-caption"></p><div id="bars"></div></section></div>
+<section class="panel records"><div class="row"><div><h2 id="table-title"></h2><p id="table-caption"></p></div><button id="export">Export CSV</button></div>
+<div class="overflow"><table><thead></thead><tbody></tbody></table></div>
+<div class="row pager"><span id="range"></span><div><button id="prev">Previous</button> <button id="next">Next</button></div></div></section>
+</div>
+<footer id="citation">Reference ratings from Kurdi, Lozano &amp; Banaji (2017). <a href="https://osf.io/6pnd7/">OASIS dataset ↗</a> · <a href="https://doi.org/10.3758/s13428-016-0715-3">Study ↗</a></footer>
+</main>
+<!--recording-->
+<script src="oasis.js"></script><script src="sessions.js"></script><script src="dashboard.js"></script>
+</body></html>

@@ -26,8 +26,14 @@ namespace EmotionDriven
         void OnGUI()
         {
             if (!visible) return;
-            var e = EmotionManager.Instance != null ? EmotionManager.Instance.Latest : new EmotionSample();
-            string txt = $"Emotion: {e.Label}  (conf {e.Confidence:P0})\nValence: {e.Valence:F2}  Arousal: {e.Arousal:F2}";
+            var manager = EmotionManager.Instance;
+            if (!manager || !manager.HasSample)
+            {
+                GUI.Label(new Rect(10, 10, 300, 60), "Waiting for emotion input", _style);
+                return;
+            }
+            var e = manager.Latest;
+            string txt = e.LabelOnly ? $"Emotion: {e.Label} (label only)" : $"Emotion: {e.Label}  (conf {e.Confidence:P0})\nValence: {e.Valence:F2}  Arousal: {e.Arousal:F2}";
             GUI.Label(new Rect(10, 10, 300, 60), txt, _style);
         }
     }

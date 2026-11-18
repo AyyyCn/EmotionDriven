@@ -36,11 +36,13 @@ namespace EmotionDriven
 
         private void LateUpdate()
         {
-            if (_stimuli.Length == 0 || _mainCam == null) return;
+            if (_stimuli.Length == 0) return;
+            if (_mainCam == null) _mainCam = Camera.main;
+            if (_mainCam == null) return;
 
             var playerPos = _mainCam.transform.position;
             foreach (var s in _stimuli)
-                s.Tick(playerPos, _mainCam);
+                if (s.isActiveAndEnabled) s.Tick(playerPos, _mainCam);
         }
 
 #if UNITY_EDITOR

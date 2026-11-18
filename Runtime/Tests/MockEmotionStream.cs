@@ -36,6 +36,7 @@ public class MockEmotionStream : MonoBehaviour
             };
         }
 
-        EmotionManager.Instance.UpdateEmotion(sample);
+        sample.Source = "Mock";
+        EmotionManager.Instance?.UpdateEmotion(sample);
     }
 }

@@ -53,6 +53,7 @@ namespace EmotionDriven.Editor
             var manager    = FindObjectOfType<EmotionDriven.EmotionManager>(true);
 
             EditorGUILayout.LabelField("EmotionManager", manager ? "✅ Present" : "❌ Missing");
+            EditorGUILayout.LabelField("Camera receiver", FindObjectOfType<CameraEmotionReceiver>(true) ? "Present" : "Missing");
             EditorGUILayout.LabelField("Trackable Objects", trackables.Length.ToString());
             EditorGUILayout.LabelField("Stimuli components", stimuli.Length.ToString());
         }
@@ -68,6 +69,21 @@ namespace EmotionDriven.Editor
             if (GUILayout.Button("Open Session Logger", GUILayout.Height(30)))
                 EditorApplication.ExecuteMenuItem("Tools/Emotion-Driven/Emotion Logger/Session Manager");
             EditorGUILayout.EndHorizontal();
+
+            if (GUILayout.Button("Add camera receiver", GUILayout.Height(30)))
+            {
+                var manager = FindObjectOfType<EmotionManager>(true);
+                if (!manager)
+                {
+                    EnsureEmotionManager();
+                    manager = FindObjectOfType<EmotionManager>(true);
+                }
+                if (!FindObjectOfType<CameraEmotionReceiver>(true))
+                    Undo.AddComponent<CameraEmotionReceiver>(manager.gameObject);
+            }
+
+            if (GUILayout.Button("Open Analytics Dashboard", GUILayout.Height(30)))
+                EmotionDashboard.Open();
 
             // row 2
             EditorGUILayout.BeginHorizontal();
@@ -101,10 +117,10 @@ namespace EmotionDriven.Editor
                 if (!string.IsNullOrEmpty(readmePath))
                     AssetDatabase.OpenAsset(AssetDatabase.LoadAssetAtPath<TextAsset>(AssetDatabase.GUIDToAssetPath(readmePath)));
                 else
-                    Application.OpenURL("https://github.com/your-repo/EmotionDrivenToolkit#readme");
+                    Application.OpenURL("https://github.com/AyyyCn/EmotionDriven#readme");
             }
             if (GUILayout.Button("GitHub / Issues"))
-                Application.OpenURL("https://github.com/your-repo/EmotionDrivenToolkit/issues");
+                Application.OpenURL("https://github.com/AyyyCn/EmotionDriven/issues");
         }
     }
 }

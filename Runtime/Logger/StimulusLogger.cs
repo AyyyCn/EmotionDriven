@@ -3,11 +3,14 @@ using EmotionDriven;
 
 public class StimulusLogger : MonoBehaviour
 {
-    void OnEnable()  => EmotionManager.Instance.OnStimulus += Log;
-    void OnDisable() => EmotionManager.Instance.OnStimulus -= Log;
+    void OnEnable()  => EmotionEvents.Any += Log;
+    void OnDisable() => EmotionEvents.Any -= Log;
 
     void Log(StimulusEvent e)
     {
-        Debug.Log($"[{e.Time:F2}] {e.TrackableId} {e.StimulusType}/{e.Phase} → {e.Emotion.Label} ({e.Emotion.Confidence:P0})");
+        string reading = e.Emotion.Source == "No input" ? "No input" : e.Emotion.Label.ToString();
+        if (!e.Emotion.LabelOnly && e.Emotion.Source != "No input")
+            reading += $" ({e.Emotion.Confidence:P0})";
+        Debug.Log($"[{e.Time:F2}] {e.TrackableId} {e.StimulusType}/{e.Phase} → {reading}");
     }
 }

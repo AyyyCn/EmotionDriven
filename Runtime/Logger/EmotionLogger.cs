@@ -40,55 +40,78 @@ namespace EmotionDriven
         private static string              _jsonFilePath;
         private static bool                _started;
         private static string _apiURL;
-private static string _authToken;
-
-
-        // MongoDB
+        private static string _authToken;
         private static IMongoCollection<BsonDocument> _mongoCollection;
 
-        //────────────────── PUBLIC API ──────────//
-public static void StartSession(EmotionSessionData session, string apiURL = null, string authToken = null)
-{
-    EndSession();
-    _session    = session;
-    _started    = true;
-    _buffer.Clear();
-    _lastFlushTime = Time.realtimeSinceStartup;
+        public static bool IsRecording => _started;
+        public static int EventCount { get; private set; }
+        public static DateTime? LastEventTime { get; private set; }
+        public static string SessionPath => _jsonFilePath;
 
-    _apiURL    = apiURL;
-    _authToken = authToken;
-
-    // Création du fichier
-    string dir = Path.Combine(Application.persistentDataPath, session.LocalPath);
-    Directory.CreateDirectory(dir);
-
-    _jsonFilePath = Path.Combine(dir, session.SessionName + ".jsonl");
-    _streamWriter = new StreamWriter(_jsonFilePath, false) { AutoFlush = true };
-    _streamWriter.WriteLine("#SESSION " + JsonUtility.ToJson(session, true));
-
-    // MongoDB
-    if (session.LogTarget is EmotionLogTarget.MongoDB or EmotionLogTarget.Both)
-    {
-        try
+        public static void StartSession(EmotionSessionData session, string apiURL = null, string authToken = null)
         {
-            _mongoCollection = new MongoClient(session.MongoURI)
-                               .GetDatabase("EmotionLogger")
-                               .GetCollection<BsonDocument>(session.SessionName);
-            Debug.Log("[EmotionLogger] MongoDB connected.");
-        }
-        catch (Exception ex) { Debug.LogError("[EmotionLogger] MongoDB error: " + ex.Message); }
-    }
+            if (!EmotionManager.Instance)
+                throw new InvalidOperationException("Add an active EmotionManager before starting a session.");
+            if (string.IsNullOrWhiteSpace(session.SessionName) ||
+                session.SessionName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+                session.SessionName.Contains("/") || session.SessionName.Contains("\\"))
+                throw new ArgumentException("Choose a session name without path separators or invalid file characters.");
 
-    EmotionManager.Instance.OnStimulus += HandleStimulus;
+            EndSession();
+            string dir = Path.Combine(Application.persistentDataPath, session.LocalPath ?? "Logs/EmotionSessions");
+            Directory.CreateDirectory(dir);
+            string fileName = session.SessionName + "_" + DateTime.UtcNow.ToString("yyyyMMdd_HHmmss_fff")
+                              + "_" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".jsonl";
+            string path = Path.Combine(dir, fileName);
+            var writer = new StreamWriter(new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read));
+            try
+            {
+                writer.AutoFlush = true;
+                var metadata = session;
+                metadata.MongoURI = null;
+                writer.WriteLine("#SESSION " + JsonUtility.ToJson(metadata));
+            }
+            catch
+            {
+                writer.Dispose();
+                throw;
+            }
 
+            _session = session;
+            _apiURL = apiURL;
+            _authToken = authToken;
+            _streamWriter = writer;
+            _jsonFilePath = path;
+            _lastFlushTime = Time.realtimeSinceStartup;
+            EventCount = 0;
+            LastEventTime = null;
+            _started = true;
 
-            Debug.Log($"[EmotionLogger] Session '{session.SessionName}' started.");
+            if (session.LogTarget is EmotionLogTarget.MongoDB or EmotionLogTarget.Both)
+            {
+                try
+                {
+                    _mongoCollection = new MongoClient(session.MongoURI)
+                        .GetDatabase("EmotionLogger").GetCollection<BsonDocument>(session.SessionName);
+                }
+                catch (Exception ex) { Debug.LogError("[EmotionLogger] MongoDB error: " + ex.Message); }
+            }
+            EmotionManager.Instance.OnStimulus += HandleStimulus;
+            Debug.Log($"[EmotionLogger] Recording to {path}");
         }
 
         public static void LogEvent(StimulusEvent evt) => HandleStimulus(evt);
 
+        internal static void FlushBatchIfDue()
+        {
+            if (_started && _session.LoggerMode == EmotionLoggerMode.Batch && _buffer.Count > 0 &&
+                Time.realtimeSinceStartup - _lastFlushTime >= _session.FlushInterval)
+                FlushBuffer();
+        }
+
         public static void ForceSave()
         {
+            if (!_started) return;
             FlushBuffer();
             _streamWriter?.Flush();                       // s’assurer que tout est sur disque
             Debug.Log("[EmotionLogger] ForceSave → flush to disk");
@@ -114,6 +137,8 @@ public static void StartSession(EmotionSessionData session, string apiURL = null
         {
             if (!_started) return;
 
+            EventCount++;
+            LastEventTime = DateTime.Now;
             switch (_session.LoggerMode)
             {
                 case EmotionLoggerMode.Realtime:
@@ -121,11 +146,6 @@ public static void StartSession(EmotionSessionData session, string apiURL = null
                     break;
 
                 case EmotionLoggerMode.Batch:
-                    _buffer.Add(evt);
-                    if (Time.realtimeSinceStartup - _lastFlushTime >= _session.FlushInterval)
-                        FlushBuffer();
-                    break;
-
                 case EmotionLoggerMode.Manual:
                     _buffer.Add(evt);
                     break;
@@ -174,12 +194,9 @@ public static void StartSession(EmotionSessionData session, string apiURL = null
         {
             if (!_started) return;
             FlushBuffer();
-            _streamWriter?.Dispose();
-
-            if (_session.LogTarget == EmotionLogTarget.API)
-                _ = UploadFileToApiAsync(_apiURL, _authToken, _jsonFilePath);
-
+            bool upload = _session.LogTarget == EmotionLogTarget.API;
             Clear();
+            if (upload) _ = UploadFileToApiAsync(_apiURL, _authToken, _jsonFilePath);
         }
 
         //────────────────── API UPLOAD ──────────//
@@ -204,7 +221,7 @@ private static async Task UploadFileToApiAsync(string url, string token, string 
 
         form.Add(fileContent, "jsonlFile", Path.GetFileName(filePath));
 
-        var response = await client.PostAsync(url, form);
+        using var response = await client.PostAsync(url, form);
         if (response.IsSuccessStatusCode)
             Debug.Log("[EmotionLogger] API upload successful.");
         else

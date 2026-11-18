@@ -13,7 +13,7 @@ public class UdpEmotionReceiver : MonoBehaviour
     private UdpClient udpClient;
     private Thread receiveThread;
     private ConcurrentQueue<EmotionSample> emotionQueue = new ConcurrentQueue<EmotionSample>();
-    private bool running = false;
+    private volatile bool running = false;
 
     void Start()
     {
@@ -45,18 +45,24 @@ public class UdpEmotionReceiver : MonoBehaviour
             {
                 byte[] data = udpClient.Receive(ref remoteEP);
                 string json = Encoding.UTF8.GetString(data);
-                EmotionData payload = JsonUtility.FromJson<EmotionData>(json);
+                var payload = new EmotionData();
+                JsonUtility.FromJsonOverwrite(json, payload);
+                if (!Enum.IsDefined(typeof(EmotionLabel), payload.label) ||
+                    !(payload.valence >= -1 && payload.valence <= 1 &&
+                      payload.arousal >= 0 && payload.arousal <= 1 &&
+                      payload.confidence >= 0 && payload.confidence <= 1))
+                    continue;
 
                 EmotionSample sample = new EmotionSample
                 {
                     Label = (EmotionLabel)payload.label,
+                    Source = "UDP",
                     Valence = payload.valence,
                     Arousal = payload.arousal,
                     Confidence = payload.confidence
                 };
 
                 emotionQueue.Enqueue(sample);
-                Debug.Log($"Received Emotion: {sample.Label}, Valence: {sample.Valence}, Arousal: {sample.Arousal}, Confidence: {sample.Confidence}");
             }
             catch (Exception e)
             {
@@ -90,9 +96,9 @@ public class UdpEmotionReceiver : MonoBehaviour
     [Serializable]
     public class EmotionData
     {
-        public int label;
-        public float valence;
-        public float arousal;
-        public float confidence;
+        public int label = -1;
+        public float valence = float.NaN;
+        public float arousal = float.NaN;
+        public float confidence = float.NaN;
     }
 }
