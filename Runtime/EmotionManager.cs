@@ -2,10 +2,10 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEditor;
+
 namespace EmotionDriven
 {
-    public enum EmotionLabel { Neutral, Happy, Sad, Angry, Fear, Surprise }
+    public enum EmotionLabel { Neutral, Happy, Sad, Angry, Fear, Surprise, Disgust, Contempt }
     public enum StimulusType  { Visual, Audio, Proximity, Custom }
     public enum StimulusPhase { Enter, Stay, Exit }
 
@@ -15,6 +15,8 @@ namespace EmotionDriven
     {
         public double Time;
         public EmotionLabel Label;
+        public string Source;
+        public bool LabelOnly;
         [Range(-1f, 1f)] public float Valence;
         [Range(0f, 1f)] public float Arousal;
         [Range(0f, 1f)] public float Confidence;
@@ -25,6 +27,7 @@ namespace EmotionDriven
     public struct StimulusEvent
     {
         public string TrackableId;
+        public string TrackableName;
         public StimulusType StimulusType;
         public StimulusPhase Phase;
         public double Time;
@@ -42,6 +45,7 @@ namespace EmotionDriven
 
         [SerializeField] private EmotionSample _latest;
         public EmotionSample Latest => _latest;
+        public bool HasSample { get; private set; }
 
         [Header("Passive Logging (no stimulus)")]
         public bool passiveLoggingEnabled = false;
@@ -58,9 +62,19 @@ namespace EmotionDriven
             DontDestroyOnLoad(gameObject);
         }
 
+        private void OnDestroy()
+        {
+            if (Instance != this) return;
+            EmotionLogger.EndSession();
+            Instance = null;
+        }
+
+        private void Update() => EmotionLogger.FlushBatchIfDue();
+
         public void UpdateEmotion(EmotionSample sample)
         {
-            Debug.Log($"Emotion Updated: {sample.Label}, Valence: {sample.Valence}, Arousal: {sample.Arousal}, Confidence: {sample.Confidence}");
+            if (string.IsNullOrEmpty(sample.Source)) sample.Source = "Adapter";
+            HasSample = true;
             _latest = sample;
             OnEmotionUpdated?.Invoke(sample);
 
@@ -68,9 +82,15 @@ namespace EmotionDriven
                 _passiveLog.Add(sample);
         }
 
+        internal void ClearInput(string source)
+        {
+            if (_latest.Source == source) HasSample = false;
+        }
+
         internal void RaiseStimulus(StimulusEvent evt)
         {
             OnStimulus?.Invoke(evt);
+            EmotionEvents.Raise(evt);
         }
 
         /// <summary>Returns all passively logged emotion samples.</summary>

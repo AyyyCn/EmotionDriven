@@ -22,6 +22,7 @@ namespace EmotionDriven
 
         private static void AddSample(StimulusEvent e)
         {
+            if (e.Emotion.LabelOnly || e.Emotion.Source == "No input") return;
             q.Enqueue((Time.time, e.Emotion.Valence, e.Emotion.Arousal));
             // drop old samples
             while (q.Count > 0 && q.Peek().t < Time.time - Window) q.Dequeue();

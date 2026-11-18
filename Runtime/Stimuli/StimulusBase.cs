@@ -35,12 +35,15 @@ namespace EmotionDriven
             if (now - _lastTriggerTime < cooldown) return;
             if (onlyOnce && _hasTriggered)         return;
 
-            var emotion = EmotionManager.Instance != null ? EmotionManager.Instance.Latest : default;
+            var manager = EmotionManager.Instance;
+            if (manager == null) return;
+            var emotion = manager.HasSample ? manager.Latest : new EmotionSample { Source = "No input" };
             if (emotion.Confidence < confidenceThreshold) return;
             if (emotionFilter.Length > 0 && !emotionFilter.Contains(emotion.Label)) return;
 
             var evt = new StimulusEvent {
                 TrackableId  = ParentTrackable != null ? ParentTrackable.ObjectGuid : name,
+                TrackableName = ParentTrackable != null ? ParentTrackable.displayName : name,
                 StimulusType = Type,
                 Phase        = phase,
                 Time         = now,
